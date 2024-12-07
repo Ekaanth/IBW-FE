@@ -1,87 +1,185 @@
-import { useState } from "react";
+import { useState, useEffect } from 'react';
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
+import { VAULT_ADDRESS, TBNB_ADDRESS } from '@/config/contracts';
+import { CollateralVaultABI } from '@/abis/CollateralVaultABI';
+import { parseEther, parseUnits } from 'viem';
+import { toast } from "sonner";
+import { erc20ABI } from '@/abis/erc20ABI';
+import { bscTestnet } from 'wagmi/chains';
 
 interface CollateralizeFormProps {
-  collateralRatio: number;
   bnbPrice: number;
-  onCollateralize: (bnbAmount: string, usdcAmount: string) => void;
+  onCollateralize: (bnbAmount: string) => Promise<void>;
 }
 
-const CollateralizeForm = ({ collateralRatio: displayRatio, bnbPrice, onCollateralize }: CollateralizeFormProps) => {
-  const [usdcAmount, setUsdcAmount] = useState<string>("");
-  const { toast } = useToast();
-  const FIXED_COLLATERAL_RATIO = 200; // Fixed 200% ratio for new collateralization
+const CollateralizeForm = ({ bnbPrice, onCollateralize }: CollateralizeFormProps) => {
+  const { address } = useAccount();
+  const [amount, setAmount] = useState('');
+  const [amountWei, setAmountWei] = useState<bigint>(BigInt(0));
+  const [isApproving, setIsApproving] = useState(false);
+  const [isLocking, setIsLocking] = useState(false);
 
-  const calculateRequiredBNB = () => {
-    const usdcValue = parseFloat(usdcAmount);
-    if (isNaN(usdcValue)) return "0";
-    const requiredCollateralValue = (usdcValue * FIXED_COLLATERAL_RATIO) / 100;
-    const requiredBNB = requiredCollateralValue / bnbPrice;
-    return requiredBNB.toFixed(4);
-  };
+  // Contract interactions
+  const { writeContract: approveToken, data: approvalTxHash } = useWriteContract();
+  const { writeContract: lockCollateral, data: lockTxHash } = useWriteContract();
 
-  const handleCollateralize = async () => {
+  // Transaction monitoring
+  const { isSuccess: isApprovalConfirmed } = useWaitForTransactionReceipt({
+    hash: approvalTxHash,
+  });
+
+  const { isSuccess: isLockConfirmed } = useWaitForTransactionReceipt({
+    hash: lockTxHash,
+  });
+
+  // Handle approval confirmation
+  useEffect(() => {
+    if (isApprovalConfirmed && amountWei > 0) {
+      try {
+        setIsApproving(false);
+        setIsLocking(true);
+        
+        // Calculate USDC amount with proper decimal handling
+        const bnbValueInUSD = (amountWei * BigInt(bnbPrice)) / BigInt(1e6); // bnbPrice has 6 decimals
+        const usdcToMint = bnbValueInUSD / BigInt(2); // 200% ratio
+
+        console.log('Values:', {
+          bnbAmount: amountWei.toString(),
+          bnbValueInUSD: bnbValueInUSD.toString(),
+          usdcToMint: usdcToMint.toString()
+        });
+        
+        lockCollateral({
+          address: VAULT_ADDRESS,
+          abi: CollateralVaultABI,
+          functionName: 'lockCollateralAndMint',
+          args: [amountWei, usdcToMint],
+          account: address,
+          chain: bscTestnet,
+        });
+      } catch (error) {
+        console.error('Lock error:', error);
+        setIsLocking(false);
+        toast.error('Failed to lock collateral');
+      }
+    }
+  }, [isApprovalConfirmed, amountWei, amount, bnbPrice]);
+
+  // Handle lock confirmation
+  useEffect(() => {
+    if (isLockConfirmed) {
+      setIsLocking(false);
+      toast.success('Successfully locked collateral');
+      onCollateralize(amount);
+      setAmount('');
+      setAmountWei(BigInt(0));
+    }
+  }, [isLockConfirmed]);
+
+  const handleLock = async () => {
+    if (!amount) return;
+    
     try {
-      const requiredBNB = calculateRequiredBNB();
-      onCollateralize(requiredBNB, usdcAmount);
-      toast({
-        title: "Collateralization Initiated",
-        description: `Swapping ${requiredBNB} BNB for ${usdcAmount} USDC`,
-      });
-      setUsdcAmount("");
+      setIsApproving(true);
+      const wei = parseEther(amount);
+
+      // Check current allowance first
+      const allowance = await tbnb.allowance(address, VAULT_ADDRESS);
+      console.log('Current allowance:', allowance.toString());
+      
+      // Only approve if needed
+      if (allowance < wei) {
+        console.log('Approving BNB transfer...');
+        await approveToken({
+          address: TBNB_ADDRESS,
+          abi: erc20ABI,
+          functionName: 'approve',
+          args: [VAULT_ADDRESS, wei],
+          account: address,
+          chain: bscTestnet,
+        });
+      }
+
+      // Wait for approval confirmation before proceeding
+      if (isApprovalConfirmed) {
+        console.log('Depositing BNB...');
+        await lockCollateral({
+          address: VAULT_ADDRESS,
+          abi: CollateralVaultABI,
+          functionName: 'depositCollateralAndBorrow',
+          args: [wei],
+          account: address,
+          chain: bscTestnet,
+        });
+      }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to collateralize",
-        variant: "destructive",
-      });
+      console.error('Error:', error);
+      toast.error('Transaction failed');
+      setIsApproving(false);
     }
   };
 
   return (
-    <Card className="bg-[#1A1F2C]/80 backdrop-blur-xl border-[#9b87f5]/20 p-8 lg:p-10">
-      <h2 className="text-2xl lg:text-3xl font-semibold mb-6 bg-gradient-to-r from-[#9b87f5] to-[#7E69AB] bg-clip-text text-transparent">
-        Collateralize BNB
-      </h2>
-      <div className="space-y-6">
-        <div>
-          <label className="block text-base lg:text-lg font-medium text-gray-300 mb-2">
-            USDC Amount
-          </label>
-          <Input
-            type="number"
-            placeholder="Enter USDC amount"
-            value={usdcAmount}
-            onChange={(e) => setUsdcAmount(e.target.value)}
-            className="bg-[#121620] border-[#9b87f5]/20 text-gray-200 placeholder:text-gray-500 text-lg lg:text-xl h-14"
-          />
+    <Card className="p-6 bg-[#1A1F2C]/80 backdrop-blur-xl border-[#9b87f5]/20">
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-white">Lock BNB Collateral</h3>
+          <span className="text-sm text-gray-400">Required Ratio: 200%</span>
         </div>
-        <div>
-          <label className="block text-base lg:text-lg font-medium text-gray-300 mb-2">
-            Required BNB
-          </label>
-          <div className="text-2xl lg:text-3xl font-mono font-semibold text-[#9b87f5]">
-            {calculateRequiredBNB()} BNB
+        
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm text-gray-400 block">Amount to Lock</label>
+            <div className="flex gap-2">
+              <Input
+                type="number"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter BNB amount"
+                className="bg-[#1A1F2C] border-[#9b87f5]/20 text-white"
+              />
+              <Button
+                onClick={handleLock}
+                disabled={isApproving || isLocking || !amount}
+                className="bg-[#9b87f5] hover:bg-[#7E69AB] text-white"
+              >
+                {isApproving ? (
+                  <>
+                    <span className="animate-spin mr-2">⚪</span>
+                    Approving...
+                  </>
+                ) : isLocking ? (
+                  <>
+                    <span className="animate-spin mr-2">⚪</span>
+                    Locking...
+                  </>
+                ) : (
+                  'Lock Collateral'
+                )}
+              </Button>
+            </div>
           </div>
-          <p className="text-base text-gray-400 mt-2">
-            Based on 200% collateral ratio
-          </p>
-          {displayRatio !== 200 && (
-            <p className="text-sm text-yellow-500 mt-1">
-              Current system ratio: {displayRatio.toFixed(2)}%
-            </p>
+
+          {amount && (
+            <div className="bg-[#1A1F2C]/50 p-4 rounded-lg space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">You will receive:</span>
+                <span className="text-[#9b87f5] font-mono">
+                  {(parseFloat(amount) * bnbPrice / 2).toFixed(2)} USDC
+                </span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-400">Collateral Value:</span>
+                <span className="text-[#9b87f5] font-mono">
+                  ${(parseFloat(amount) * bnbPrice).toFixed(2)}
+                </span>
+              </div>
+            </div>
           )}
         </div>
-        <Button 
-          onClick={handleCollateralize}
-          className="w-full bg-[#9b87f5] hover:bg-[#7E69AB] text-white transition-all duration-200 text-lg h-14 mt-4"
-          disabled={!usdcAmount || parseFloat(usdcAmount) <= 0}
-        >
-          Collateralize
-        </Button>
       </div>
     </Card>
   );

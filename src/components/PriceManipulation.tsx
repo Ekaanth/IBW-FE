@@ -9,19 +9,20 @@ interface PriceManipulationProps {
   onRevertPrice: () => void;
 }
 
-const PriceManipulation = ({
-  bnbPrice,
+const PriceManipulation = ({ 
+  bnbPrice, 
   collateralizedBnb,
   usdcBalance,
-  onPriceChange,
-  onRevertPrice
+  onPriceChange, 
+  onRevertPrice 
 }: PriceManipulationProps) => {
   const [selectedDrop, setSelectedDrop] = useState<number>(20);
+  const BASE_PRICE = 745;
 
   const handlePriceChange = () => {
     const priceReduction = (bnbPrice * selectedDrop) / 100;
     const newPrice = bnbPrice - priceReduction;
-    onPriceChange(newPrice);
+    onPriceChange(selectedDrop);
   };
 
   return (
@@ -49,6 +50,15 @@ const PriceManipulation = ({
         >
           Reset Price
         </button>
+      </div>
+
+      {/* Preview section */}
+      <div className="mt-4 text-sm text-gray-400">
+        <p>Base Price: ${BASE_PRICE.toFixed(2)}</p>
+        <p>Current Price: ${bnbPrice.toFixed(2)}</p>
+        <p>Price After {selectedDrop}% Drop: ${(bnbPrice * (1 - selectedDrop/100)).toFixed(2)}</p>
+        <p>Current Collateral Ratio: {calculateCollateralRatio(collateralizedBnb, bnbPrice, usdcBalance).toFixed(2)}%</p>
+        <p>Ratio After Drop: {calculateCollateralRatio(collateralizedBnb, bnbPrice * (1 - selectedDrop/100), usdcBalance).toFixed(2)}%</p>
       </div>
     </div>
   );

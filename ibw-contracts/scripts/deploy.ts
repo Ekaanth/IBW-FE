@@ -1,23 +1,47 @@
 import { ethers } from "hardhat";
 
 async function main() {
-  // Deploy MockUSDC
-  const MockUSDC = await ethers.getContractFactory("MockUSDC");
-  const mockUSDC = await MockUSDC.deploy();
-  await mockUSDC.waitForDeployment();
-  console.log("MockUSDC deployed to:", await mockUSDC.getAddress());
+  const [deployer] = await ethers.getSigners();
+  console.log("Deploying contracts with:", deployer.address);
 
-  // Deploy IBWVault
-  const IBWVault = await ethers.getContractFactory("IBWVault");
-  const ibwVault = await IBWVault.deploy(await mockUSDC.getAddress());
-  await ibwVault.waitForDeployment();
-  console.log("IBWVault deployed to:", await ibwVault.getAddress());
+  // Deploy TestBNB
+  const TestBNB = await ethers.getContractFactory("TestBNB");
+  const testBNB = await TestBNB.deploy();
+  await testBNB.waitForDeployment();
+  console.log("TestBNB deployed to:", await testBNB.getAddress());
 
-  // Verify contract addresses
-  console.log("\nContract Addresses:");
-  console.log("------------------");
-  console.log("MockUSDC:", await mockUSDC.getAddress());
-  console.log("IBWVault:", await ibwVault.getAddress());
+  // Deploy TestUSDC
+  const TestUSDC = await ethers.getContractFactory("TestUSDC");
+  const testUSDC = await TestUSDC.deploy();
+  await testUSDC.waitForDeployment();
+  console.log("TestUSDC deployed to:", await testUSDC.getAddress());
+
+  // Deploy CollateralManager
+  const CollateralManager = await ethers.getContractFactory("CollateralManager");
+  const collateralManager = await CollateralManager.deploy(
+    await testUSDC.getAddress(),
+    await testBNB.getAddress()
+  );
+  await collateralManager.waitForDeployment();
+  console.log("CollateralManager deployed to:", await collateralManager.getAddress());
+
+  // Deploy IBWPriceAVS
+  const IBWPriceAVS = await ethers.getContractFactory("IBWPriceAVS");
+  const avs = await IBWPriceAVS.deploy(
+    process.env.EIGENLAYER_SERVICE_MANAGER || "",
+    await collateralManager.getAddress()
+  );
+  await avs.waitForDeployment();
+  console.log("IBWPriceAVS deployed to:", await avs.getAddress());
+
+  // Setup initial permissions
+  await collateralManager.setAVSService(await avs.getAddress());
+  console.log("Permissions set up");
+
+  // Mint initial supplies
+  await testUSDC.mint(collateralManager.getAddress(), ethers.parseUnits("100000", 6));
+  await testBNB.mint(deployer.address, ethers.parseEther("1000"));
+  console.log("Initial supplies minted");
 }
 
 main()
