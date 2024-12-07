@@ -5,11 +5,13 @@ import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useState, useEffect } from "react";
+import { useWeb3Actions } from "@/hooks/useWeb3Actions";
 
 const ValidatorActions = () => {
   const navigate = useNavigate();
   const [completedActions, setCompletedActions] = useState<string[]>([]);
   const [pendingActions, setPendingActions] = useState<any[]>([]);
+  const { handleCollateralization, handleRepayment, handleWithdraw, position } = useWeb3Actions();
 
   useEffect(() => {
     fetchPendingActions();
@@ -111,6 +113,18 @@ const ValidatorActions = () => {
       console.error('Price validation error:', error);
       toast.error("Failed to validate price");
     }
+  };
+
+  const onCollateralize = async (values: any) =>{
+    await handleCollateralization(values.bnbAmount, values.usdcAmount);
+  };
+
+  const onRepay = async (values: any) => {
+    await handleRepayment(values.amount);
+  };
+
+  const onWithdraw = async (values: any) => {
+    await handleWithdraw(values.amount);
   };
 
   return (

@@ -1,0 +1,17 @@
+{
+    "name": "ibw-contracts",
+    "version": "1.0.0",
+    "scripts": {
+        "compile": "hardhat compile",
+        "test": "hardhat test",
+        "deploy:testnet": "hardhat run scripts/deploy.ts --network bscTestnet",
+        "verify:testnet": "hardhat verify --network bscTestnet"
+    },
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+        "@openzeppelin/contracts": "^5.1.0",
+        "dotenv": "^16.0.3",
+        "hardhat": "^2.19.0",
+        "typescript": "^5.0.4"
+    }
+}
