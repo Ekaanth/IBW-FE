@@ -3,18 +3,16 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useEffect, useState } from 'react';
-import { parseEther, parseUnits, formatUnits } from 'viem';
-import { VAULT_ADDRESS, TBNB_ADDRESS, TUSDC_ADDRESS } from '@/config/contracts';
+import { parseEther } from 'viem';
+import { VAULT_ADDRESS, TBNB_ADDRESS } from '@/config/contracts';
 import { toast } from "sonner";
 import { CollateralVaultABI } from '../abis/CollateralVaultABI';
 import { erc20ABI } from '@/abis/erc20ABI';
 import { bscTestnet } from 'wagmi/chains';
-import { waitForTransactionReceipt } from 'viem/actions';
 
 export const CollateralManager = () => {
   const { address } = useAccount();
   const [bnbAmount, setBnbAmount] = useState('');
-  const [bnbAmountWei, setBnbAmountWei] = useState<bigint>(BigInt(0));
   const [isApproving, setIsApproving] = useState(false);
   const [isDepositing, setIsDepositing] = useState(false);
 
@@ -33,20 +31,23 @@ export const CollateralManager = () => {
 
   // Handle approval confirmation
   useEffect(() => {
-    if (isApprovalConfirmed && bnbAmountWei > 0) {
+    if (isApprovalConfirmed && bnbAmount) {
       setIsApproving(false);
       setIsDepositing(true);
+      
+      // Convert BNB amount to number for contract
+      const bnbValue = Math.floor(parseFloat(bnbAmount));
       
       lockCollateral({
         address: VAULT_ADDRESS,
         abi: CollateralVaultABI,
-        functionName: 'lockCollateralAndMint',
-        args: [bnbAmountWei],
+        functionName: 'depositCollateralAndMintUSD',
+        args: [BigInt(bnbValue)],
         account: address,
         chain: bscTestnet,
       });
     }
-  }, [isApprovalConfirmed, bnbAmountWei]);
+  }, [isApprovalConfirmed, bnbAmount]);
 
   // Handle deposit confirmation
   useEffect(() => {
@@ -54,7 +55,6 @@ export const CollateralManager = () => {
       setIsDepositing(false);
       toast.success('Successfully locked collateral and minted USDC');
       setBnbAmount('');
-      setBnbAmountWei(BigInt(0));
     }
   }, [isDepositConfirmed]);
 
@@ -63,14 +63,14 @@ export const CollateralManager = () => {
     
     try {
       setIsApproving(true);
-      const amountWei = parseEther(bnbAmount);
-      setBnbAmountWei(amountWei);
+      // Convert to wei for approval since BNB transfers still use wei
+      const amountInWei = parseEther(bnbAmount);
 
       await approveToken({
         address: TBNB_ADDRESS,
         abi: erc20ABI,
         functionName: 'approve',
-        args: [VAULT_ADDRESS, amountWei],
+        args: [VAULT_ADDRESS, amountInWei],
         account: address,
         chain: bscTestnet,
       });
@@ -91,7 +91,7 @@ export const CollateralManager = () => {
             type="number"
             value={bnbAmount}
             onChange={(e) => setBnbAmount(e.target.value)}
-            placeholder="Enter BNB amount"
+            placeholder="Enter BNB amount (whole numbers)"
             className="bg-[#1A1F2C] border-[#9b87f5]/20 text-white"
           />
           <Button

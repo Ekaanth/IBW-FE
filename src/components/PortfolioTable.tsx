@@ -30,6 +30,14 @@ const PortfolioTable = ({ bnbPrice, onPriceChange }: PortfolioTableProps) => {
   const [trend, setTrend] = useState<'up' | 'down' | null>(null);
   const [lastPrice, setLastPrice] = useState(bnbPrice);
 
+  // Fetch user's position from vault
+  const { data: position } = useReadContract({
+    address: VAULT_ADDRESS,
+    abi: CollateralVaultABI,
+    functionName: 'positions',
+    args: [address as `0x${string}`],
+  }) as { data: ValidatorPosition };
+
   // Fetch BNB balance
   const { data: bnbBalanceRaw, refetch: refetchBNBBalance } = useReadContract({
     address: TBNB_ADDRESS,
@@ -39,20 +47,12 @@ const PortfolioTable = ({ bnbPrice, onPriceChange }: PortfolioTableProps) => {
   });
 
   // Fetch USDC balance
-  const { data: usdcBalanceRaw, refetch: refetchBalance } = useReadContract({
+  const { data: usdcBalanceRaw, refetch: refetchUSDCBalance } = useReadContract({
     address: TUSDC_ADDRESS,
     abi: erc20ABI,
     functionName: 'balanceOf',
     args: [address as `0x${string}`],
   });
-
-  // Fetch collateralized BNB balance
-  const { data: positionRaw } = useReadContract({
-    address: VAULT_ADDRESS as `0x${string}`,
-    abi: CollateralVaultABI,
-    functionName: 'getPosition',
-    args: [address as `0x${string}`],
-  }) as { data: ValidatorPosition };
 
   // Mint USDC
   const { data: mintTx, writeContract: mintUsdc } = useWriteContract();
@@ -66,10 +66,10 @@ const PortfolioTable = ({ bnbPrice, onPriceChange }: PortfolioTableProps) => {
   useEffect(() => {
     if (isMintConfirmed) {
       toast.success('Successfully minted 1000 USDC');
-      refetchBalance();
+      refetchUSDCBalance();
       setIsMinting(false);
     }
-  }, [isMintConfirmed, refetchBalance]);
+  }, [isMintConfirmed, refetchUSDCBalance]);
 
   // Watch for BNB mint confirmation
   useEffect(() => {
@@ -127,9 +127,12 @@ const PortfolioTable = ({ bnbPrice, onPriceChange }: PortfolioTableProps) => {
   }
 
   // Format balances
-  const usdcBalance = usdcBalanceRaw ? formatUnits(usdcBalanceRaw as bigint, 6) : '0';
-  const collateralizedBnb = positionRaw?.collateralAmount ? 
-    formatEther(positionRaw.collateralAmount) : 
+  const usdcBalance = usdcBalanceRaw ? formatUnits(usdcBalanceRaw, 6) : '0';
+  const bnbBalance = bnbBalanceRaw ? formatEther(bnbBalanceRaw) : '0';
+  
+  // Format collateral position
+  const collateralizedBnb = position?.collateralAmount ? 
+    formatEther(position.collateralAmount) : 
     '0';
   const collateralValueInUSD = parseFloat(collateralizedBnb) * bnbPrice;
   const totalValue = parseFloat(usdcBalance) + collateralValueInUSD;
@@ -229,7 +232,10 @@ const PortfolioTable = ({ bnbPrice, onPriceChange }: PortfolioTableProps) => {
               ${collateralValueInUSD.toFixed(2)}
             </p>
             <p className="text-xs text-gray-500 font-mono">
-              {parseFloat(collateralizedBnb).toFixed(2)} BNB
+              {parseFloat(collateralizedBnb).toFixed(4)} BNB
+            </p>
+            <p className="text-xs text-gray-500 font-mono">
+              Borrowed: {formatUnits(position?.usdcBorrowed || BigInt(0), 6)} USDC
             </p>
           </div>
         </Card>

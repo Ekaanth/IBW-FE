@@ -2,44 +2,26 @@ export const CollateralVaultABI = [
 	{
 		"inputs": [
 			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
+				"internalType": "uint256",
+				"name": "amountUSDC",
+				"type": "uint256"
 			}
 		],
-		"name": "burnExcessCollateral",
+		"name": "burnTokens",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
 	},
 	{
 		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "bnbAmount",
-				"type": "uint256"
-			},
-			{
-				"internalType": "uint256",
-				"name": "usdcAmount",
-				"type": "uint256"
-			}
-		],
-		"name": "lockCollateralAndMint",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "_testBNB",
-				"type": "address"
-			},
 			{
 				"internalType": "address",
 				"name": "_testUSDC",
+				"type": "address"
+			},
+			{
+				"internalType": "address",
+				"name": "_testBNB",
 				"type": "address"
 			}
 		],
@@ -80,50 +62,44 @@ export const CollateralVaultABI = [
 			{
 				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "bnbAmount",
+				"type": "uint256"
+			},
+			{
+				"indexed": false,
+				"internalType": "uint256",
+				"name": "usdcAmount",
 				"type": "uint256"
 			}
 		],
-		"name": "CollateralBurned",
+		"name": "CollateralDeposited",
 		"type": "event"
 	},
 	{
 		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
 				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "currentRatio",
 				"type": "uint256"
 			}
 		],
-		"name": "CollateralLocked",
+		"name": "CollateralRatioBreached",
 		"type": "event"
 	},
 	{
-		"anonymous": false,
 		"inputs": [
 			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
 				"internalType": "uint256",
-				"name": "amount",
+				"name": "amountBNB",
 				"type": "uint256"
 			}
 		],
-		"name": "CollateralReleased",
-		"type": "event"
+		"name": "depositCollateralAndMintUSD",
+		"outputs": [],
+		"stateMutability": "nonpayable",
+		"type": "function"
 	},
 	{
 		"anonymous": false,
@@ -145,25 +121,6 @@ export const CollateralVaultABI = [
 		"type": "event"
 	},
 	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "oldPrice",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "newPrice",
-				"type": "uint256"
-			}
-		],
-		"name": "PriceUpdated",
-		"type": "event"
-	},
-	{
 		"inputs": [],
 		"name": "renounceOwnership",
 		"outputs": [],
@@ -174,11 +131,11 @@ export const CollateralVaultABI = [
 		"inputs": [
 			{
 				"internalType": "uint256",
-				"name": "usdcAmount",
+				"name": "_priceBNB",
 				"type": "uint256"
 			}
 		],
-		"name": "repayAndUnlock",
+		"name": "setPrice",
 		"outputs": [],
 		"stateMutability": "nonpayable",
 		"type": "function"
@@ -197,77 +154,7 @@ export const CollateralVaultABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "newPrice",
-				"type": "uint256"
-			}
-		],
-		"name": "updatePrice",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "USDCMinted",
-		"type": "event"
-	},
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": true,
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "amount",
-				"type": "uint256"
-			}
-		],
-		"name": "USDCRepaid",
-		"type": "event"
-	},
-	{
 		"inputs": [],
-		"name": "bnbPrice",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
 		"name": "checkCollateralRatio",
 		"outputs": [
 			{
@@ -281,7 +168,7 @@ export const CollateralVaultABI = [
 	},
 	{
 		"inputs": [],
-		"name": "COLLATERAL_RATIO",
+		"name": "collateralRatio",
 		"outputs": [
 			{
 				"internalType": "uint256",
@@ -293,36 +180,13 @@ export const CollateralVaultABI = [
 		"type": "function"
 	},
 	{
-		"inputs": [
-			{
-				"internalType": "address",
-				"name": "user",
-				"type": "address"
-			}
-		],
-		"name": "getPosition",
+		"inputs": [],
+		"name": "owner",
 		"outputs": [
 			{
-				"components": [
-					{
-						"internalType": "uint256",
-						"name": "collateralAmount",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "usdcBorrowed",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256",
-						"name": "lastUpdateTime",
-						"type": "uint256"
-					}
-				],
-				"internalType": "struct CollateralManager.Position",
+				"internalType": "address",
 				"name": "",
-				"type": "tuple"
+				"type": "address"
 			}
 		],
 		"stateMutability": "view",
@@ -330,10 +194,36 @@ export const CollateralVaultABI = [
 	},
 	{
 		"inputs": [],
-		"name": "owner",
+		"name": "priceBNB",
 		"outputs": [
 			{
-				"internalType": "address",
+				"internalType": "uint256",
+				"name": "",
+				"type": "uint256"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "testBNB",
+		"outputs": [
+			{
+				"internalType": "contract IERC20",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [],
+		"name": "testUSDC",
+		"outputs": [
+			{
+				"internalType": "contract IERC20",
 				"name": "",
 				"type": "address"
 			}
@@ -365,32 +255,49 @@ export const CollateralVaultABI = [
 				"internalType": "uint256",
 				"name": "lastUpdateTime",
 				"type": "uint256"
+			},
+			{
+				"internalType": "bool",
+				"name": "isActive",
+				"type": "bool"
 			}
 		],
 		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "testBNB",
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getUserCollateral",
 		"outputs": [
 			{
-				"internalType": "contract IERC20",
+				"internalType": "uint256",
 				"name": "",
-				"type": "address"
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
 		"type": "function"
 	},
 	{
-		"inputs": [],
-		"name": "testUSDC",
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "user",
+				"type": "address"
+			}
+		],
+		"name": "getUserBorrowed",
 		"outputs": [
 			{
-				"internalType": "contract ITestUSDC",
+				"internalType": "uint256",
 				"name": "",
-				"type": "address"
+				"type": "uint256"
 			}
 		],
 		"stateMutability": "view",
